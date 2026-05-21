@@ -1,102 +1,148 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  motion,
-  useAnimation,
-  AnimatePresence,
-} from "framer-motion";
+import { motion, useAnimation, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
-const EASING: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
+// How far left the logo travels — expressed as a CSS calc so it never
+// leaves the viewport. "50vw - 10vw - half-logo-width" puts the logo's
+// right edge ~10vw from the left edge.
+const LOGO_SIZE = 140; // px
+const LOGO_SLIDE_X = `calc(-50vw + 10vw + ${LOGO_SIZE / 2}px)`;
 
 export default function SplashScreen() {
   const logoControls = useAnimation();
-  const glowControls = useAnimation();
-  const containerControls = useAnimation();
+  const textControls = useAnimation();
   const taglineControls = useAnimation();
 
+  const [glowVisible, setGlowVisible] = useState(false);
   const [textVisible, setTextVisible] = useState(false);
   const [taglineVisible, setTaglineVisible] = useState(false);
-  const [glowActive, setGlowActive] = useState(false);
 
   useEffect(() => {
-    const sequence = async () => {
-      // Step 1: Logo zooms into center rapidly
+    const run = async () => {
+      // 1 — Logo zooms in from nothing to center
       await logoControls.start({
         scale: 1,
         opacity: 1,
-        transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
+        transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
       });
 
-      // Brief pause on center — then trigger glow bloom
-      await new Promise((r) => setTimeout(r, 120));
-      setGlowActive(true);
+      // 2 — Bloom fires
+      await new Promise((r) => setTimeout(r, 80));
+      setGlowVisible(true);
 
-      await new Promise((r) => setTimeout(r, 480));
+      await new Promise((r) => setTimeout(r, 500));
 
-      // Step 2 & 3: Logo slides left, text reveals simultaneously
+      // 3 — Logo slides left + text expands simultaneously
       setTextVisible(true);
-
       await Promise.all([
         logoControls.start({
-          x: "-56px",
-          transition: { duration: 0.72, ease: EASING },
+          x: LOGO_SLIDE_X,
+          transition: { duration: 0.75, ease: EASE_OUT_EXPO },
         }),
-        containerControls.start({
-          width: "220px",
-          transition: { duration: 0.72, ease: EASING },
+        textControls.start({
+          width: "auto",
+          opacity: 1,
+          transition: { duration: 0.75, ease: EASE_OUT_EXPO },
         }),
       ]);
 
-      // Step 4: Tagline fades in
-      await new Promise((r) => setTimeout(r, 260));
+      // 4 — Tagline
+      await new Promise((r) => setTimeout(r, 220));
       setTaglineVisible(true);
-
-      await taglineControls.start({
-        opacity: 1,
-        y: 0,
-        transition: { duration: 0.6, ease: EASING },
-      });
     };
 
-    sequence();
-  }, [logoControls, glowControls, containerControls, taglineControls]);
+    run();
+  }, [logoControls, textControls, taglineControls]);
 
   return (
-    <div className="relative flex items-center justify-center w-full h-[100dvh] bg-black overflow-hidden select-none">
+    <div
+      className="relative flex items-center justify-center min-h-[100dvh] w-full overflow-x-hidden select-none"
+      style={{ background: "#000" }}
+    >
+      {/* ── Noise SVG filter (hidden) ── */}
+      <svg width="0" height="0" className="absolute">
+        <defs>
+          <filter id="noise-filter" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.65"
+              numOctaves="3"
+              stitchTiles="stitch"
+              result="noiseOut"
+            />
+            <feColorMatrix type="saturate" values="0" in="noiseOut" result="grayNoise" />
+            <feBlend in="SourceGraphic" in2="grayNoise" mode="overlay" result="blended" />
+            <feComposite in="blended" in2="SourceGraphic" operator="in" />
+          </filter>
+        </defs>
+      </svg>
 
-      {/* ── Center lock ── */}
-      <div className="relative flex items-center justify-center">
+      {/* ── Branding block: logo + text side-by-side ── */}
+      <div className="relative flex items-center">
 
-        {/* Red Glow Bloom */}
+        {/* Volumetric gritty bloom — centered behind the whole block */}
+        <AnimatePresence>
+          {glowVisible && (
+            <motion.div
+              className="absolute inset-0 pointer-events-none"
+              style={{ zIndex: 0 }}
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 1.1, ease: EASE_OUT_EXPO }}
+            >
+              {/* Outer diffuse layer */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: 480,
+                  height: 480,
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(circle, rgba(220,38,38,0.55) 0%, rgba(220,38,38,0.22) 38%, rgba(220,38,38,0.06) 62%, transparent 78%)",
+                  filter: "url(#noise-filter) blur(32px)",
+                }}
+              />
+              {/* Inner hot core */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: 200,
+                  height: 200,
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(circle, rgba(220,38,38,0.75) 0%, rgba(180,20,20,0.3) 55%, transparent 80%)",
+                  filter: "blur(18px)",
+                  mixBlendMode: "screen",
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Spartan Logo */}
         <motion.div
-          className="absolute rounded-full pointer-events-none"
+          className="relative flex-shrink-0"
           style={{
-            width: 320,
-            height: 320,
-            background:
-              "radial-gradient(circle, rgba(220,38,38,0.38) 0%, rgba(220,38,38,0.12) 45%, transparent 72%)",
-            filter: "blur(28px)",
+            width: LOGO_SIZE,
+            height: LOGO_SIZE,
+            zIndex: 10,
           }}
-          initial={{ opacity: 0, scale: 0.6 }}
-          animate={
-            glowActive
-              ? { opacity: 1, scale: 1.15, transition: { duration: 0.9, ease: EASING } }
-              : {}
-          }
-        />
-
-        {/* Logo */}
-        <motion.div
-          className="relative z-10 flex-shrink-0"
           initial={{ scale: 0, opacity: 0 }}
           animate={logoControls}
-          style={{ width: 96, height: 96 }}
         >
           <Image
             src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-6zav1x60RgyXnRH2w4WtcXl9sTz5R4.png"
-            alt="Aryzen Arena logo"
+            alt="Aryzen Arena Spartan helmet"
             fill
             className="object-contain"
             priority
@@ -104,74 +150,91 @@ export default function SplashScreen() {
         </motion.div>
 
         {/* Text reveal container */}
-        <motion.div
-          className="overflow-hidden z-10 flex-shrink-0"
-          style={{ width: 0 }}
-          animate={containerControls}
-        >
-          <div className="pl-4 flex flex-col items-start justify-center gap-[2px] whitespace-nowrap">
-            {/* ARYZEN */}
-            <span
-              className="text-white font-cabinet leading-none tracking-tight"
-              style={{
-                fontFamily: "'Cabinet Grotesk', sans-serif",
-                fontSize: "2.75rem",
-                fontWeight: 800,
-                letterSpacing: "-0.01em",
-              }}
+        {textVisible && (
+          <motion.div
+            className="overflow-hidden flex-shrink-0"
+            style={{ width: 0, opacity: 0, zIndex: 10 }}
+            animate={textControls}
+          >
+            <div
+              className="flex flex-col items-start justify-center"
+              style={{ paddingLeft: "18px", gap: "3px" }}
             >
-              ARYZEN
-            </span>
-            {/* ARENA */}
-            <span
-              className="text-white leading-none"
-              style={{
-                fontFamily: "'Cabinet Grotesk', sans-serif",
-                fontSize: "1.05rem",
-                fontWeight: 400,
-                letterSpacing: "0.45em",
-                width: "100%",
-                display: "block",
-              }}
-            >
-              ARENA
-            </span>
-          </div>
-        </motion.div>
+              {/* ARYZEN — bold white with red inner glow */}
+              <span
+                style={{
+                  fontFamily: "'Cabinet Grotesk', sans-serif",
+                  fontSize: "clamp(2.4rem, 6vw, 3.2rem)",
+                  fontWeight: 800,
+                  color: "#FFFFFF",
+                  letterSpacing: "-0.01em",
+                  lineHeight: 1,
+                  whiteSpace: "nowrap",
+                  // Red inner-glow: simulates light bleeding from the left (the helmet side)
+                  textShadow:
+                    "-6px 0 18px rgba(220,38,38,0.9), -2px 0 8px rgba(220,38,38,0.6)",
+                  display: "block",
+                }}
+              >
+                ARYZEN
+              </span>
+
+              {/* ARENA — medium weight, letter-spaced to match ARYZEN width */}
+              <span
+                style={{
+                  fontFamily: "'Cabinet Grotesk', sans-serif",
+                  fontSize: "clamp(0.9rem, 2.2vw, 1.1rem)",
+                  fontWeight: 500,
+                  color: "#FFFFFF",
+                  // ~0.52em tracking makes "ARENA" span the same width as "ARYZEN" at 800w
+                  letterSpacing: "0.52em",
+                  lineHeight: 1,
+                  whiteSpace: "nowrap",
+                  display: "block",
+                  // Slight right-pad so the last letter's gap doesn't cause visual overhang
+                  paddingRight: "0.52em",
+                }}
+              >
+                ARENA
+              </span>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* ── Tagline ── */}
       <AnimatePresence>
         {taglineVisible && (
           <motion.div
-            className="absolute bottom-12 left-0 right-0 flex flex-col items-center gap-2"
-            initial={{ opacity: 0, y: 14 }}
+            className="absolute left-0 right-0 flex flex-col items-center gap-2"
+            style={{ bottom: "clamp(2rem, 6vw, 3.5rem)" }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: EASING }}
+            transition={{ duration: 0.65, ease: EASE_OUT_EXPO }}
           >
             <p
-              className="text-center"
               style={{
                 fontFamily: "'Cabinet Grotesk', sans-serif",
                 color: "#DC2626",
-                fontSize: "1rem",
+                fontSize: "clamp(0.85rem, 2.5vw, 1rem)",
                 fontWeight: 600,
-                letterSpacing: "0.02em",
+                letterSpacing: "0.04em",
+                textAlign: "center",
               }}
             >
               Real Tournaments. Real Money.
             </p>
             <p
-              className="text-center"
               style={{
                 fontFamily: "'Cabinet Grotesk', sans-serif",
-                color: "#6b7280",
-                fontSize: "0.78rem",
+                color: "#4b5563",
+                fontSize: "clamp(0.72rem, 2vw, 0.82rem)",
                 fontWeight: 400,
-                letterSpacing: "0.01em",
+                letterSpacing: "0.02em",
+                textAlign: "center",
               }}
             >
-              🇮🇳 Made by Gamers, for Gamers
+              Made by Gamers, for Gamers
             </p>
           </motion.div>
         )}
