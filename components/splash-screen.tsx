@@ -102,89 +102,23 @@ export default function SplashScreen() {
         style={{ height: "80dvh", zIndex: 10 }}
       >
         {/* 
-          Branding block container - this is the mask parent with overflow: hidden.
-          The logo slides left within this, revealing text from behind the mask.
+          Branding block - logo and text side by side.
+          The text starts hidden with clipPath and reveals via translation.
         */}
-        <div 
-          className="relative flex items-center"
-          style={{ 
-            // Total width = logo + text block + gap
-            width: LOGO_SIZE + TEXT_BLOCK_WIDTH + 12,
-            height: LOGO_SIZE,
-            overflow: "hidden",
-          }}
-        >
-          {/* Text block - starts hidden outside the mask (x offset), slides into view */}
+        <div className="relative flex items-center">
+          {/* Spartan Logo - starts centered, slides left to final position */}
           <motion.div
-            className="absolute flex flex-col items-start justify-center"
-            style={{ 
-              left: LOGO_SIZE + 12,
-              top: "50%",
-              width: TEXT_BLOCK_WIDTH,
-              gap: "3px",
-            }}
-            initial={{ x: TEXT_BLOCK_WIDTH, y: "-50%" }}
-            animate={{
-              x: phase === "zoom" ? TEXT_BLOCK_WIDTH : 0,
-              y: "-50%",
-            }}
-            transition={{ duration: 0.75, ease: EASE_OUT_EXPO }}
-          >
-            {/* ARYZEN — gradient text (crimson to blood-red) */}
-            <span
-              style={{
-                fontFamily: "'Cabinet Grotesk', sans-serif",
-                fontSize: "clamp(2rem, 9vw, 3rem)",
-                fontWeight: 800,
-                background: "linear-gradient(180deg, #DC2626 0%, #7F1D1D 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                letterSpacing: "-0.02em",
-                lineHeight: 1,
-                whiteSpace: "nowrap",
-                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.8))",
-              }}
-            >
-              ARYZEN
-            </span>
-
-            {/* ARENA — medium weight, massive letter-spacing to match ARYZEN width */}
-            <span
-              style={{
-                fontFamily: "'Cabinet Grotesk', sans-serif",
-                fontSize: "clamp(0.6rem, 2.5vw, 0.85rem)",
-                fontWeight: 500,
-                background: "linear-gradient(180deg, #991B1B 0%, #DC2626 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                letterSpacing: "0.62em",
-                lineHeight: 1.3,
-                whiteSpace: "nowrap",
-                paddingRight: "0.62em",
-                filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))",
-              }}
-            >
-              ARENA
-            </span>
-          </motion.div>
-
-          {/* Spartan Logo - starts centered in container, slides left to final position */}
-          <motion.div
-            className="absolute flex-shrink-0"
+            className="relative flex-shrink-0"
             style={{
               width: LOGO_SIZE,
               height: LOGO_SIZE,
-              left: 0,
-              top: 0,
               zIndex: 5,
             }}
-            initial={{ scale: 0, opacity: 0, x: (TEXT_BLOCK_WIDTH + 12) / 2 }}
+            initial={{ scale: 0, opacity: 0, x: (TEXT_BLOCK_WIDTH + 16) / 2 }}
             animate={{ 
               scale: 1, 
               opacity: 1,
-              x: phase === "zoom" ? (TEXT_BLOCK_WIDTH + 12) / 2 : 0,
+              x: phase === "zoom" ? (TEXT_BLOCK_WIDTH + 16) / 2 : 0,
             }}
             transition={{ 
               scale: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
@@ -199,6 +133,64 @@ export default function SplashScreen() {
               className="object-contain"
               priority
             />
+          </motion.div>
+
+          {/* Text reveal container - clips content from left edge */}
+          <motion.div
+            style={{
+              overflow: "hidden",
+              marginLeft: 16,
+            }}
+            initial={{ width: 0 }}
+            animate={{ width: phase === "zoom" ? 0 : TEXT_BLOCK_WIDTH }}
+            transition={{ duration: 0.75, ease: EASE_OUT_EXPO }}
+          >
+            <div 
+              className="flex flex-col items-start justify-center"
+              style={{ 
+                width: TEXT_BLOCK_WIDTH,
+                gap: "3px",
+              }}
+            >
+              {/* ARYZEN — gradient text (crimson to blood-red) */}
+              <span
+                style={{
+                  fontFamily: "'Cabinet Grotesk', sans-serif",
+                  fontSize: "clamp(2rem, 9vw, 3rem)",
+                  fontWeight: 800,
+                  background: "linear-gradient(180deg, #DC2626 0%, #7F1D1D 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                  letterSpacing: "-0.02em",
+                  lineHeight: 1,
+                  whiteSpace: "nowrap",
+                  filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.8))",
+                }}
+              >
+                ARYZEN
+              </span>
+
+              {/* ARENA — medium weight, massive letter-spacing to match ARYZEN width */}
+              <span
+                style={{
+                  fontFamily: "'Cabinet Grotesk', sans-serif",
+                  fontSize: "clamp(0.6rem, 2.5vw, 0.85rem)",
+                  fontWeight: 500,
+                  background: "linear-gradient(180deg, #991B1B 0%, #DC2626 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                  letterSpacing: "0.62em",
+                  lineHeight: 1.3,
+                  whiteSpace: "nowrap",
+                  paddingRight: "0.62em",
+                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))",
+                }}
+              >
+                ARENA
+              </span>
+            </div>
           </motion.div>
         </div>
       </div>
