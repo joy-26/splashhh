@@ -1,33 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 const LOGO_SIZE = 90;
-const TEXT_BLOCK_WIDTH = 180; // Width of the text container for the mask reveal
+const TEXT_BLOCK_WIDTH = 180;
+const GAP = 16;
+// Total row width so we can compute the logo's final screen-center-relative position
+const ROW_WIDTH = LOGO_SIZE + GAP + TEXT_BLOCK_WIDTH;
 
 export default function SplashScreen() {
   const [phase, setPhase] = useState<"zoom" | "slide" | "done">("zoom");
   const [glowVisible, setGlowVisible] = useState(false);
   const [taglineVisible, setTaglineVisible] = useState(false);
 
+  // The logo is always absolutely positioned on the full screen.
+  // Zoom phase:  centered  → top: 50%, left: 50%, translate(-50%, -50%)
+  // Slide phase: moves to the left slot of the centered row.
+  // The row is centered, so its left edge is at:  50vw - ROW_WIDTH/2
+  // The logo occupies the first LOGO_SIZE px of that row.
+  // Therefore the logo's final center is at:  50vw - ROW_WIDTH/2 + LOGO_SIZE/2
+  // Expressed as a translate from screen center (50vw, 50vh):
+  //   x offset = -(ROW_WIDTH/2 - LOGO_SIZE/2)  =  -(TEXT_BLOCK_WIDTH + GAP) / 2
+
+  const LOGO_FINAL_X = -((TEXT_BLOCK_WIDTH + GAP) / 2); // negative = left
+
   useEffect(() => {
     const run = async () => {
-      // 1 — Logo zooms in (phase stays "zoom")
+      // 1 — Logo zooms in
       await new Promise((r) => setTimeout(r, 500));
 
       // 2 — Bloom fires
       setGlowVisible(true);
       await new Promise((r) => setTimeout(r, 600));
 
-      // 3 — Slide phase: logo moves left, text reveals from mask
+      // 3 — Slide: logo moves left, text mask expands
       setPhase("slide");
       await new Promise((r) => setTimeout(r, 900));
 
-      // 4 — Tagline
+      // 4 — Taglines
       setPhase("done");
       setTaglineVisible(true);
     };
@@ -37,10 +51,10 @@ export default function SplashScreen() {
 
   return (
     <div
-      className="relative flex flex-col min-h-[100dvh] w-full overflow-hidden select-none"
+      className="relative min-h-[100dvh] w-full overflow-hidden select-none"
       style={{ background: "#000" }}
     >
-      {/* ── Layered Bloom Effect - gritty multi-layer glow ── */}
+      {/* ── Layered Bloom ── */}
       <AnimatePresence>
         {glowVisible && (
           <motion.div
@@ -50,7 +64,6 @@ export default function SplashScreen() {
             animate={{ opacity: 1 }}
             transition={{ duration: 1.2, ease: EASE_OUT_EXPO }}
           >
-            {/* Outer diffuse layer - wide spread */}
             <div
               style={{
                 position: "absolute",
@@ -64,7 +77,6 @@ export default function SplashScreen() {
                 filter: "blur(80px)",
               }}
             />
-            {/* Mid layer - tighter */}
             <div
               style={{
                 position: "absolute",
@@ -78,7 +90,6 @@ export default function SplashScreen() {
                 filter: "blur(50px)",
               }}
             />
-            {/* Inner hot core - concentrated */}
             <div
               style={{
                 position: "absolute",
@@ -96,122 +107,143 @@ export default function SplashScreen() {
         )}
       </AnimatePresence>
 
-      {/* ── Main content area - TRUE CENTER of the 80% viewport ── */}
+      {/* ── Branding area — occupies top 70% of screen ── */}
       <div
-        className="relative flex items-center justify-center w-full"
-        style={{ height: "80dvh", zIndex: 10 }}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "70dvh",
+          zIndex: 10,
+        }}
       >
-        {/* 
-          Branding block - logo and text side by side.
-          The text starts hidden with clipPath and reveals via translation.
+        {/*
+          Logo: absolutely centered on the FULL screen during zoom.
+          Uses top/left 50% + Framer translate to sit at viewport center.
+          On slide phase, translateX shifts left by LOGO_FINAL_X to land
+          in the left slot of the centered row.
         */}
-        <div className="relative flex items-center">
-          {/* Spartan Logo - starts centered (offset right by half text block), slides left */}
-          <motion.div
-            className="relative flex-shrink-0"
-            style={{
-              width: LOGO_SIZE,
-              height: LOGO_SIZE,
-              zIndex: 5,
-            }}
-            initial={{ scale: 0, opacity: 0, x: (TEXT_BLOCK_WIDTH + 16) / 2 }}
-            animate={
-              phase === "zoom"
-                ? { scale: 1, opacity: 1, x: (TEXT_BLOCK_WIDTH + 16) / 2 }
-                : { scale: 1, opacity: 1, x: 0 }
-            }
-            transition={
-              phase === "zoom"
-                ? {
-                    scale: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
-                    opacity: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
-                    x: { duration: 0 },
-                  }
-                : {
-                    x: { duration: 0.75, ease: EASE_OUT_EXPO },
-                    scale: { duration: 0 },
-                    opacity: { duration: 0 },
-                  }
-            }
-          >
-            <Image
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-6zav1x60RgyXnRH2w4WtcXl9sTz5R4.png"
-              alt="Aryzen Arena Spartan helmet"
-              fill
-              className="object-contain"
-              priority
-            />
-          </motion.div>
+        <motion.div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: LOGO_SIZE,
+            height: LOGO_SIZE,
+            zIndex: 5,
+          }}
+          initial={{ scale: 0, opacity: 0, x: -(LOGO_SIZE / 2), y: -(LOGO_SIZE / 2) }}
+          animate={
+            phase === "zoom"
+              ? {
+                  scale: 1,
+                  opacity: 1,
+                  x: -(LOGO_SIZE / 2),
+                  y: -(LOGO_SIZE / 2),
+                }
+              : {
+                  scale: 1,
+                  opacity: 1,
+                  x: LOGO_FINAL_X - LOGO_SIZE / 2,
+                  y: -(LOGO_SIZE / 2),
+                }
+          }
+          transition={
+            phase === "zoom"
+              ? {
+                  scale: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+                  opacity: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+                  x: { duration: 0 },
+                  y: { duration: 0 },
+                }
+              : {
+                  x: { duration: 0.75, ease: EASE_OUT_EXPO },
+                  y: { duration: 0 },
+                  scale: { duration: 0 },
+                  opacity: { duration: 0 },
+                }
+          }
+        >
+          <Image
+            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-6zav1x60RgyXnRH2w4WtcXl9sTz5R4.png"
+            alt="Aryzen Arena Spartan helmet"
+            fill
+            className="object-contain"
+            priority
+          />
+        </motion.div>
 
-          {/* Text reveal container - clips content, expands width on slide phase */}
-          <motion.div
-            style={{
-              overflow: "hidden",
-              marginLeft: 16,
-            }}
-            initial={{ width: 0 }}
-            animate={{ width: phase === "zoom" ? 0 : TEXT_BLOCK_WIDTH }}
-            transition={
-              phase === "zoom"
-                ? { duration: 0 }
-                : { duration: 0.75, ease: EASE_OUT_EXPO }
-            }
+        {/*
+          Text mask: centered in the branding area, left-offset to sit
+          next to where the logo lands. overflow:hidden + width 0→full.
+        */}
+        <motion.div
+          style={{
+            position: "absolute",
+            top: "50%",
+            // Row is centered: left edge = 50% - ROW_WIDTH/2
+            // Text starts at: left edge + LOGO_SIZE + GAP
+            left: `calc(50% - ${ROW_WIDTH / 2}px + ${LOGO_SIZE + GAP}px)`,
+            overflow: "hidden",
+            transform: "translateY(-50%)",
+          }}
+          initial={{ width: 0 }}
+          animate={{ width: phase === "zoom" ? 0 : TEXT_BLOCK_WIDTH }}
+          transition={
+            phase === "zoom"
+              ? { duration: 0 }
+              : { duration: 0.75, ease: EASE_OUT_EXPO }
+          }
+        >
+          <div
+            className="flex flex-col items-start justify-center"
+            style={{ width: TEXT_BLOCK_WIDTH, gap: "3px" }}
           >
-            <div 
-              className="flex flex-col items-start justify-center"
-              style={{ 
-                width: TEXT_BLOCK_WIDTH,
-                gap: "3px",
+            <span
+              style={{
+                fontFamily: "'Cabinet Grotesk', sans-serif",
+                fontSize: "clamp(2rem, 9vw, 3rem)",
+                fontWeight: 800,
+                background: "linear-gradient(180deg, #DC2626 0%, #7F1D1D 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                letterSpacing: "-0.02em",
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.8))",
               }}
             >
-              {/* ARYZEN — gradient text (crimson to blood-red) */}
-              <span
-                style={{
-                  fontFamily: "'Cabinet Grotesk', sans-serif",
-                  fontSize: "clamp(2rem, 9vw, 3rem)",
-                  fontWeight: 800,
-                  background: "linear-gradient(180deg, #DC2626 0%, #7F1D1D 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                  letterSpacing: "-0.02em",
-                  lineHeight: 1,
-                  whiteSpace: "nowrap",
-                  filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.8))",
-                }}
-              >
-                ARYZEN
-              </span>
-
-              {/* ARENA — medium weight, massive letter-spacing to match ARYZEN width */}
-              <span
-                style={{
-                  fontFamily: "'Cabinet Grotesk', sans-serif",
-                  fontSize: "clamp(0.6rem, 2.5vw, 0.85rem)",
-                  fontWeight: 500,
-                  background: "linear-gradient(180deg, #991B1B 0%, #DC2626 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                  letterSpacing: "0.62em",
-                  lineHeight: 1.3,
-                  whiteSpace: "nowrap",
-                  paddingRight: "0.62em",
-                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))",
-                }}
-              >
-                ARENA
-              </span>
-            </div>
-          </motion.div>
-        </div>
+              ARYZEN
+            </span>
+            <span
+              style={{
+                fontFamily: "'Cabinet Grotesk', sans-serif",
+                fontSize: "clamp(0.6rem, 2.5vw, 0.85rem)",
+                fontWeight: 500,
+                background: "linear-gradient(180deg, #991B1B 0%, #DC2626 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                letterSpacing: "0.62em",
+                lineHeight: 1.3,
+                whiteSpace: "nowrap",
+                paddingRight: "0.62em",
+                filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))",
+              }}
+            >
+              ARENA
+            </span>
+          </div>
+        </motion.div>
       </div>
 
-      {/* ── Taglines - positioned just above the bottom 20% ── */}
+      {/* ── Taglines ── */}
       <div
         className="absolute left-0 right-0 flex flex-col items-center justify-end"
-        style={{ 
-          bottom: "10dvh", 
+        style={{
+          bottom: "10dvh",
           paddingBottom: "1rem",
           zIndex: 10,
         }}
@@ -250,8 +282,8 @@ export default function SplashScreen() {
                 }}
               >
                 Made by Gamers, for Gamers
-                <span 
-                  role="img" 
+                <span
+                  role="img"
                   aria-label="India flag"
                   style={{ fontSize: "1.5em" }}
                 >
@@ -263,7 +295,7 @@ export default function SplashScreen() {
         </AnimatePresence>
       </div>
 
-      {/* ── Bottom 20% reserved for Get Started button ── */}
+      {/* ── Bottom reserved zone for Get Started button ── */}
       <div
         className="absolute bottom-0 left-0 right-0"
         style={{ height: "20dvh", zIndex: 10 }}
