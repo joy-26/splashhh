@@ -1,57 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, useAnimation, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
-const LOGO_SIZE = 140;
+const LOGO_SIZE = 100;
 
 export default function SplashScreen() {
-  const logoControls = useAnimation();
-  const textControls = useAnimation();
-
+  const [phase, setPhase] = useState<"zoom" | "slide" | "done">("zoom");
   const [glowVisible, setGlowVisible] = useState(false);
-  const [textVisible, setTextVisible] = useState(false);
   const [taglineVisible, setTaglineVisible] = useState(false);
 
   useEffect(() => {
     const run = async () => {
-      // 1 — Logo zooms in from nothing to center
-      await logoControls.start({
-        scale: 1,
-        opacity: 1,
-        transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
-      });
-
-      // 2 — Bloom fires
-      await new Promise((r) => setTimeout(r, 80));
-      setGlowVisible(true);
-
+      // 1 — Logo zooms in (phase stays "zoom")
       await new Promise((r) => setTimeout(r, 500));
 
-      // 3 — Logo slides left + text expands simultaneously
-      setTextVisible(true);
-      await Promise.all([
-        logoControls.start({
-          x: -80,
-          transition: { duration: 0.75, ease: EASE_OUT_EXPO },
-        }),
-        textControls.start({
-          width: "auto",
-          opacity: 1,
-          transition: { duration: 0.75, ease: EASE_OUT_EXPO },
-        }),
-      ]);
+      // 2 — Bloom fires
+      setGlowVisible(true);
+      await new Promise((r) => setTimeout(r, 600));
+
+      // 3 — Slide phase: logo moves left, text reveals
+      setPhase("slide");
+      await new Promise((r) => setTimeout(r, 850));
 
       // 4 — Tagline
-      await new Promise((r) => setTimeout(r, 220));
+      setPhase("done");
       setTaglineVisible(true);
     };
 
     run();
-  }, [logoControls, textControls]);
+  }, []);
 
   return (
     <div
@@ -91,7 +72,13 @@ export default function SplashScreen() {
         style={{ height: "70dvh", zIndex: 10 }}
       >
         {/* Branding block: logo + text side-by-side */}
-        <div className="relative flex items-center justify-center">
+        <motion.div 
+          className="relative flex items-center justify-center"
+          animate={{
+            x: phase === "zoom" ? 0 : -20,
+          }}
+          transition={{ duration: 0.75, ease: EASE_OUT_EXPO }}
+        >
           {/* Spartan Logo */}
           <motion.div
             className="relative flex-shrink-0"
@@ -100,7 +87,11 @@ export default function SplashScreen() {
               height: LOGO_SIZE,
             }}
             initial={{ scale: 0, opacity: 0 }}
-            animate={logoControls}
+            animate={{ 
+              scale: 1, 
+              opacity: 1,
+            }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           >
             <Image
               src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-6zav1x60RgyXnRH2w4WtcXl9sTz5R4.png"
@@ -111,53 +102,49 @@ export default function SplashScreen() {
             />
           </motion.div>
 
-          {/* Text reveal container */}
-          {textVisible && (
-            <motion.div
-              className="overflow-hidden flex-shrink-0"
-              style={{ width: 0, opacity: 0 }}
-              animate={textControls}
+          {/* Text block - always present, animates in */}
+          <motion.div
+            className="flex flex-col items-start justify-center"
+            style={{ paddingLeft: "14px", gap: "2px" }}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{
+              opacity: phase === "zoom" ? 0 : 1,
+              x: phase === "zoom" ? -20 : 0,
+            }}
+            transition={{ duration: 0.75, ease: EASE_OUT_EXPO, delay: 0.1 }}
+          >
+            {/* ARYZEN — bold red */}
+            <span
+              style={{
+                fontFamily: "'Cabinet Grotesk', sans-serif",
+                fontSize: "clamp(2.25rem, 10vw, 3.5rem)",
+                fontWeight: 800,
+                color: "#DC2626",
+                letterSpacing: "-0.02em",
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+              }}
             >
-              <div
-                className="flex flex-col items-start justify-center"
-                style={{ paddingLeft: "18px", gap: "3px" }}
-              >
-                {/* ARYZEN — bold red */}
-                <span
-                  style={{
-                    fontFamily: "'Cabinet Grotesk', sans-serif",
-                    fontSize: "clamp(3rem, 8vw, 4rem)",
-                    fontWeight: 800,
-                    color: "#DC2626",
-                    letterSpacing: "-0.01em",
-                    lineHeight: 1,
-                    whiteSpace: "nowrap",
-                    display: "block",
-                  }}
-                >
-                  ARYZEN
-                </span>
+              ARYZEN
+            </span>
 
-                {/* ARENA — medium red, letter-spaced to match ARYZEN width */}
-                <span
-                  style={{
-                    fontFamily: "'Cabinet Grotesk', sans-serif",
-                    fontSize: "clamp(1rem, 2.5vw, 1.25rem)",
-                    fontWeight: 500,
-                    color: "#DC2626",
-                    letterSpacing: "0.62em",
-                    lineHeight: 1,
-                    whiteSpace: "nowrap",
-                    display: "block",
-                    paddingRight: "0.62em",
-                  }}
-                >
-                  ARENA
-                </span>
-              </div>
-            </motion.div>
-          )}
-        </div>
+            {/* ARENA — medium red, letter-spaced to match ARYZEN width */}
+            <span
+              style={{
+                fontFamily: "'Cabinet Grotesk', sans-serif",
+                fontSize: "clamp(0.7rem, 3vw, 1rem)",
+                fontWeight: 500,
+                color: "#DC2626",
+                letterSpacing: "0.58em",
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
+                paddingRight: "0.58em",
+              }}
+            >
+              ARENA
+            </span>
+          </motion.div>
+        </motion.div>
 
         {/* ── Taglines - positioned below branding block ── */}
         <AnimatePresence>
