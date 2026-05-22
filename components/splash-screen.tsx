@@ -102,33 +102,33 @@ export default function SplashScreen() {
         style={{ height: "80dvh", zIndex: 10 }}
       >
         {/* 
-          Branding block container - this is the mask parent.
-          The logo slides left within this, revealing text from behind it.
+          Branding block container - this is the mask parent with overflow: hidden.
+          The logo slides left within this, revealing text from behind the mask.
         */}
         <div 
-          className="relative flex items-center justify-center"
+          className="relative flex items-center"
           style={{ 
-            // Total width = logo + text block + padding
+            // Total width = logo + text block + gap
             width: LOGO_SIZE + TEXT_BLOCK_WIDTH + 12,
             height: LOGO_SIZE,
+            overflow: "hidden",
           }}
         >
-          {/* Text block - positioned to the right, revealed by logo sliding left */}
+          {/* Text block - starts hidden outside the mask (x offset), slides into view */}
           <motion.div
             className="absolute flex flex-col items-start justify-center"
             style={{ 
-              right: 0,
+              left: LOGO_SIZE + 12,
               top: "50%",
-              transform: "translateY(-50%)",
               width: TEXT_BLOCK_WIDTH,
-              paddingLeft: "12px",
               gap: "3px",
             }}
-            initial={{ opacity: 0 }}
+            initial={{ x: TEXT_BLOCK_WIDTH, y: "-50%" }}
             animate={{
-              opacity: phase === "zoom" ? 0 : 1,
+              x: phase === "zoom" ? TEXT_BLOCK_WIDTH : 0,
+              y: "-50%",
             }}
-            transition={{ duration: 0.5, ease: EASE_OUT_EXPO, delay: 0.2 }}
+            transition={{ duration: 0.75, ease: EASE_OUT_EXPO }}
           >
             {/* ARYZEN — gradient text (crimson to blood-red) */}
             <span
@@ -170,13 +170,15 @@ export default function SplashScreen() {
             </span>
           </motion.div>
 
-          {/* Spartan Logo - slides from center to left, uncovering the text */}
+          {/* Spartan Logo - starts centered in container, slides left to final position */}
           <motion.div
-            className="relative flex-shrink-0"
+            className="absolute flex-shrink-0"
             style={{
               width: LOGO_SIZE,
               height: LOGO_SIZE,
-              zIndex: 5, // Above text so it "covers" during zoom phase
+              left: 0,
+              top: 0,
+              zIndex: 5,
             }}
             initial={{ scale: 0, opacity: 0, x: (TEXT_BLOCK_WIDTH + 12) / 2 }}
             animate={{ 
