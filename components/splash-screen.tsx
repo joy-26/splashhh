@@ -205,8 +205,8 @@ export default function SplashScreen() {
       <div
         className="absolute left-0 right-0 flex flex-col items-center justify-end"
         style={{ 
-          bottom: "20dvh", 
-          paddingBottom: "2rem",
+          bottom: "10dvh", 
+          paddingBottom: "1rem",
           zIndex: 10,
         }}
       >
