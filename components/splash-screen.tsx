@@ -85,10 +85,10 @@ export default function SplashScreen() {
         )}
       </AnimatePresence>
 
-      {/* ── Main content area - top 80% ── */}
+      {/* ── Main content area - top 70% ── */}
       <div
         className="relative flex flex-col items-center justify-center w-full"
-        style={{ height: "80dvh", zIndex: 10 }}
+        style={{ height: "70dvh", zIndex: 10 }}
       >
         {/* Branding block: logo + text side-by-side */}
         <div className="relative flex items-center justify-center">
@@ -122,36 +122,34 @@ export default function SplashScreen() {
                 className="flex flex-col items-start justify-center"
                 style={{ paddingLeft: "18px", gap: "3px" }}
               >
-                {/* ARYZEN — bold white with subtle red glow from left */}
+                {/* ARYZEN — bold red */}
                 <span
                   style={{
                     fontFamily: "'Cabinet Grotesk', sans-serif",
-                    fontSize: "clamp(2.4rem, 6vw, 3.2rem)",
+                    fontSize: "clamp(3rem, 8vw, 4rem)",
                     fontWeight: 800,
-                    color: "#FFFFFF",
+                    color: "#DC2626",
                     letterSpacing: "-0.01em",
                     lineHeight: 1,
                     whiteSpace: "nowrap",
-                    textShadow:
-                      "-6px 0 18px rgba(220,38,38,0.9), -2px 0 8px rgba(220,38,38,0.6)",
                     display: "block",
                   }}
                 >
                   ARYZEN
                 </span>
 
-                {/* ARENA — medium weight, letter-spaced to match ARYZEN width */}
+                {/* ARENA — medium red, letter-spaced to match ARYZEN width */}
                 <span
                   style={{
                     fontFamily: "'Cabinet Grotesk', sans-serif",
-                    fontSize: "clamp(0.9rem, 2.2vw, 1.1rem)",
+                    fontSize: "clamp(1rem, 2.5vw, 1.25rem)",
                     fontWeight: 500,
-                    color: "#FFFFFF",
-                    letterSpacing: "0.52em",
+                    color: "#DC2626",
+                    letterSpacing: "0.62em",
                     lineHeight: 1,
                     whiteSpace: "nowrap",
                     display: "block",
-                    paddingRight: "0.52em",
+                    paddingRight: "0.62em",
                   }}
                 >
                   ARENA
@@ -190,19 +188,23 @@ export default function SplashScreen() {
                   fontWeight: 400,
                   letterSpacing: "0.02em",
                   textAlign: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
                 }}
               >
                 Made by Gamers, for Gamers
+                <span role="img" aria-label="India flag">🇮🇳</span>
               </p>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* ── Bottom 20% reserved for Get Started button ── */}
+      {/* ── Bottom 30% reserved for Get Started button ── */}
       <div
         className="relative w-full"
-        style={{ height: "20dvh", zIndex: 10 }}
+        style={{ height: "30dvh", zIndex: 10 }}
       />
     </div>
   );
