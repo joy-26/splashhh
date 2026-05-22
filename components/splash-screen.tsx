@@ -106,7 +106,7 @@ export default function SplashScreen() {
           The text starts hidden with clipPath and reveals via translation.
         */}
         <div className="relative flex items-center">
-          {/* Spartan Logo - starts centered, slides left to final position */}
+          {/* Spartan Logo - starts centered (offset right by half text block), slides left */}
           <motion.div
             className="relative flex-shrink-0"
             style={{
@@ -115,16 +115,24 @@ export default function SplashScreen() {
               zIndex: 5,
             }}
             initial={{ scale: 0, opacity: 0, x: (TEXT_BLOCK_WIDTH + 16) / 2 }}
-            animate={{ 
-              scale: 1, 
-              opacity: 1,
-              x: phase === "zoom" ? (TEXT_BLOCK_WIDTH + 16) / 2 : 0,
-            }}
-            transition={{ 
-              scale: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
-              opacity: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
-              x: { duration: 0.75, ease: EASE_OUT_EXPO },
-            }}
+            animate={
+              phase === "zoom"
+                ? { scale: 1, opacity: 1, x: (TEXT_BLOCK_WIDTH + 16) / 2 }
+                : { scale: 1, opacity: 1, x: 0 }
+            }
+            transition={
+              phase === "zoom"
+                ? {
+                    scale: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+                    opacity: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+                    x: { duration: 0 },
+                  }
+                : {
+                    x: { duration: 0.75, ease: EASE_OUT_EXPO },
+                    scale: { duration: 0 },
+                    opacity: { duration: 0 },
+                  }
+            }
           >
             <Image
               src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-6zav1x60RgyXnRH2w4WtcXl9sTz5R4.png"
@@ -135,7 +143,7 @@ export default function SplashScreen() {
             />
           </motion.div>
 
-          {/* Text reveal container - clips content from left edge */}
+          {/* Text reveal container - clips content, expands width on slide phase */}
           <motion.div
             style={{
               overflow: "hidden",
@@ -143,7 +151,11 @@ export default function SplashScreen() {
             }}
             initial={{ width: 0 }}
             animate={{ width: phase === "zoom" ? 0 : TEXT_BLOCK_WIDTH }}
-            transition={{ duration: 0.75, ease: EASE_OUT_EXPO }}
+            transition={
+              phase === "zoom"
+                ? { duration: 0 }
+                : { duration: 0.75, ease: EASE_OUT_EXPO }
+            }
           >
             <div 
               className="flex flex-col items-start justify-center"
