@@ -35,9 +35,9 @@ const PERF_TIER_DEFAULT: PerfTier = "high";
 
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
-const LOGO_SIZE = 90;
-const TEXT_BLOCK_WIDTH = 180;
-const GAP = 16;
+const LOGO_SIZE = 120;
+const TEXT_BLOCK_WIDTH = 220;
+const GAP = 20;
 const ROW_WIDTH = LOGO_SIZE + GAP + TEXT_BLOCK_WIDTH;
 
 // Phase timings (ms) — single source of truth. PERF: scale these for "low" tier.
@@ -113,9 +113,15 @@ export default function SplashScreen() {
         setHelmetRecoil(false);
       }
 
+      // 4b — HOLD: let the assembled mark breathe before it moves
+      await new Promise((r) => setTimeout(r, 250));
+
       // 5 — SLIDE: logo slides left, text mask expands
       setPhase("slide");
       await new Promise((r) => setTimeout(r, T.slide));
+
+      // 5b — HOLD: let ARYZEN ARENA exist fully before taglines arrive
+      await new Promise((r) => setTimeout(r, 200));
 
       // 6 — Taglines
       setPhase("done");
@@ -140,7 +146,10 @@ export default function SplashScreen() {
   return (
     <div
       className="relative min-h-[100dvh] w-full overflow-hidden select-none"
-      style={{ background: "#0F172A" }}
+      style={{
+        background:
+          "radial-gradient(ellipse 90% 70% at 50% 40%, #1e293b 0%, #0F172A 65%)",
+      }}
     >
       {/* ── Atmospheric Vignette (high + medium tier) ── */}
       {/* PERF: removed entirely on "low" tier */}
@@ -460,22 +469,64 @@ export default function SplashScreen() {
             className="flex flex-col items-start justify-center"
             style={{ width: TEXT_BLOCK_WIDTH, gap: "3px" }}
           >
+            {/* Letter-by-letter clip reveal — each letter drops in top-to-bottom
+                with a 30ms stagger. PERF: on "low" tier this renders as a single
+                static span (see ternary below). */}
             <span
               style={{
+                display: "inline-flex",
                 fontFamily: "'Josefin Sans', sans-serif",
                 fontSize: "clamp(2rem, 9vw, 3rem)",
                 fontWeight: 600,
-                background: "linear-gradient(180deg, #FF4655 0%, #991B1B 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
                 letterSpacing: "-0.02em",
                 lineHeight: 1,
                 whiteSpace: "nowrap",
-                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.8))",
               }}
+              aria-label="ARYZEN"
             >
-              ARYZEN
+              {"ARYZEN".split("").map((letter, i) => (
+                <span
+                  key={i}
+                  style={{
+                    display: "inline-block",
+                    overflow: "hidden",
+                    // Each letter is a clipping container
+                  }}
+                >
+                  <motion.span
+                    style={{
+                      display: "inline-block",
+                      background: "linear-gradient(180deg, #FF4655 0%, #991B1B 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.8))",
+                    }}
+                    // PERF: skip stagger animation on "low" tier
+                    initial={perfTier !== "low" ? { y: "-100%", opacity: 0 } : false}
+                    animate={
+                      (phase === "slide" || phase === "done")
+                        ? { y: "0%", opacity: 1 }
+                        : perfTier !== "low"
+                        ? { y: "-100%", opacity: 0 }
+                        : {}
+                    }
+                    transition={{
+                      y: {
+                        duration: 0.38,
+                        delay: i * 0.03,
+                        ease: EASE_OUT_EXPO,
+                      },
+                      opacity: {
+                        duration: 0.2,
+                        delay: i * 0.03,
+                      },
+                    }}
+                  >
+                    {letter}
+                  </motion.span>
+                </span>
+              ))}
             </span>
             <div
               style={{
@@ -568,38 +619,43 @@ export default function SplashScreen() {
               <p
                 style={{
                   fontFamily: "'Cabinet Grotesk', sans-serif",
-                  color: "#DC2626",
-                  fontSize: "clamp(0.95rem, 3vw, 1.15rem)",
-                  fontWeight: 600,
-                  letterSpacing: "0.05em",
+                  color: "#F87171",
+                  fontSize: "clamp(0.72rem, 2.6vw, 0.88rem)",
+                  fontWeight: 500,
+                  letterSpacing: "0.1em",
                   textAlign: "center",
                   margin: 0,
                   textTransform: "uppercase",
                 }}
               >
-                Real Tournaments. Real Money.
+                {/* Periods in pure red for micro-typography accent */}
+                Real Tournaments<span style={{ color: "#DC2626" }}>.</span> Real Money<span style={{ color: "#DC2626" }}>.</span>
               </p>
               <p
                 style={{
                   fontFamily: "'Cabinet Grotesk', sans-serif",
-                  color: "#94a3b8",
-                  fontSize: "clamp(0.78rem, 2.4vw, 0.9rem)",
+                  color: "#475569",
+                  fontSize: "clamp(0.65rem, 2.1vw, 0.78rem)",
                   fontWeight: 400,
-                  letterSpacing: "0.03em",
+                  letterSpacing: "0.08em",
                   textAlign: "center",
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
+                  gap: "6px",
                   margin: 0,
+                  textTransform: "uppercase",
                 }}
               >
                 Made by Gamers, for Gamers
+                {/* Flag replaced with tracked-out country text — no emoji dependency */}
                 <span
-                  role="img"
-                  aria-label="India flag"
-                  style={{ fontSize: "1.25em", lineHeight: 1 }}
+                  style={{
+                    fontSize: "0.85em",
+                    letterSpacing: "0.12em",
+                    color: "#334155",
+                  }}
                 >
-                  🇮🇳
+                  &middot; INDIA
                 </span>
               </p>
             </motion.div>
