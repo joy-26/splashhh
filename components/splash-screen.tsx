@@ -55,24 +55,24 @@ export default function SplashScreen() {
 
   useEffect(() => {
     const run = async () => {
-      // 1 — Logo zooms in
-      await new Promise((r) => setTimeout(r, 500));
+      // 1 — Logo zooms in (700ms)
+      await new Promise((r) => setTimeout(r, 700));
 
       // 2 — Bloom fires
       setGlowVisible(true);
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 700));
 
-      // 3 — Slash animation (after zoom, before slide)
+      // 3 — Slash animation (200ms + small pause)
       setPhase("slash");
       setSlashVisible(true);
       playSlashSound();
-      await new Promise((r) => setTimeout(r, 300)); // slash duration + small pause
+      await new Promise((r) => setTimeout(r, 350)); // 200ms draw + 150ms pause
 
-      // 4 — Slide: logo moves left, text mask expands
+      // 4 — Slide: logo moves left, text mask expands (1050ms)
       setPhase("slide");
-      await new Promise((r) => setTimeout(r, 900));
+      await new Promise((r) => setTimeout(r, 1050));
 
-      // 5 — Taglines
+      // 5 — Taglines (600ms fade)
       setPhase("done");
       setTaglineVisible(true);
     };
@@ -145,7 +145,7 @@ export default function SplashScreen() {
           top: 0,
           left: 0,
           right: 0,
-          height: "80dvh",
+          bottom: "20dvh",
           zIndex: 10,
           display: "flex",
           alignItems: "center",
@@ -166,33 +166,35 @@ export default function SplashScreen() {
             width: LOGO_SIZE,
             height: LOGO_SIZE,
             zIndex: 5,
+            marginTop: -(LOGO_SIZE / 2),
+            marginLeft: -(LOGO_SIZE / 2),
           }}
-          initial={{ scale: 0, opacity: 0, x: -(LOGO_SIZE / 2), y: -(LOGO_SIZE / 2) }}
+          initial={{ scale: 0, opacity: 0, x: 0, y: 0 }}
           animate={
             phase === "zoom" || phase === "slash"
               ? {
                   scale: 1,
                   opacity: 1,
-                  x: -(LOGO_SIZE / 2),
-                  y: -(LOGO_SIZE / 2),
+                  x: 0,
+                  y: 0,
                 }
               : {
                   scale: 1,
                   opacity: 1,
-                  x: LOGO_FINAL_X - LOGO_SIZE / 2,
-                  y: -(LOGO_SIZE / 2),
+                  x: LOGO_FINAL_X,
+                  y: 0,
                 }
           }
           transition={
             phase === "zoom" || phase === "slash"
               ? {
-                  scale: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
-                  opacity: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+                  scale: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+                  opacity: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
                   x: { duration: 0 },
                   y: { duration: 0 },
                 }
               : {
-                  x: { duration: 0.75, ease: EASE_OUT_EXPO },
+                  x: { duration: 1.05, ease: EASE_OUT_EXPO },
                   y: { duration: 0 },
                   scale: { duration: 0 },
                   opacity: { duration: 0 },
@@ -216,8 +218,8 @@ export default function SplashScreen() {
                 position: "absolute",
                 top: "50%",
                 left: "50%",
-                width: LOGO_SIZE * 1.5,
-                height: LOGO_SIZE * 1.5,
+      width: LOGO_SIZE,
+              height: LOGO_SIZE,
                 transform: "translate(-50%, -50%)",
                 zIndex: 4, // Behind the helmet (zIndex 5)
                 pointerEvents: "none",
@@ -247,8 +249,8 @@ export default function SplashScreen() {
                   animate={{ pathLength: 1, opacity: 0.4 }}
                   exit={{ opacity: 0 }}
                   transition={{
-                    pathLength: { duration: 0.15, ease: "easeOut" },
-                    opacity: { duration: 0.15 },
+                    pathLength: { duration: 0.2, ease: "easeOut" },
+                    opacity: { duration: 0.2 },
                   }}
                   style={{
                     filter: "drop-shadow(0 0 6px rgba(220, 38, 38, 0.6))",
@@ -278,7 +280,7 @@ export default function SplashScreen() {
           transition={
             phase === "zoom" || phase === "slash"
               ? { duration: 0 }
-              : { duration: 0.75, ease: EASE_OUT_EXPO }
+              : { duration: 1.05, ease: EASE_OUT_EXPO }
           }
         >
           <div
@@ -364,7 +366,7 @@ export default function SplashScreen() {
               className="flex flex-col items-center gap-3"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.65, ease: EASE_OUT_EXPO }}
+              transition={{ duration: 0.6, ease: EASE_OUT_EXPO }}
             >
               <p
                 style={{
