@@ -37,7 +37,7 @@ const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 const LOGO_SIZE = 120;
 const TEXT_BLOCK_WIDTH = 220;
-const GAP = 20;
+const GAP = 16;
 const ROW_WIDTH = LOGO_SIZE + GAP + TEXT_BLOCK_WIDTH;
 
 // Phase timings (ms) — single source of truth. PERF: scale these for "low" tier.
@@ -354,7 +354,7 @@ export default function SplashScreen() {
               ? { scale: 1, opacity: 1, x: LOGO_FINAL_X, y: 0 }
               : // phase === "done" — living idle
                 {
-                  scale: perfTier === "high" ? [1, 1.012, 1] : 1,
+                  scale: perfTier === "high" ? [1, 1.018, 1] : 1,
                   opacity: 1,
                   x: LOGO_FINAL_X,
                   y: 0,
@@ -575,16 +575,17 @@ export default function SplashScreen() {
       </div>
 
       {/*
-        Taglines — refined positioning above the reserved button zone.
-        Bottom 20dvh is reserved for the Get Started button.
-        Taglines sit in a compact stack just above, with a thin divider
-        rule to add visual hierarchy and breathing room.
+        Taglines block — composed with strict horizontal symmetry.
+        Position: centered between the wordmark and the bottom 20dvh button zone.
+        Visual hierarchy: ornamented divider → primary tagline → credits with flag.
+        Each element shares a center axis to feel deliberate, not stacked.
       */}
       <div
         className="absolute left-0 right-0 flex flex-col items-center"
         style={{
-          bottom: "20dvh",
-          paddingBottom: "1.25rem",
+          // Sits at ~70% screen height — pulled up from the button zone so it
+          // breathes with the wordmark above and the button below.
+          top: "62dvh",
           zIndex: 10,
           pointerEvents: "none",
         }}
@@ -593,70 +594,117 @@ export default function SplashScreen() {
           {taglineVisible && (
             <motion.div
               className="flex flex-col items-center"
-              style={{ gap: "0.5rem" }}
+              style={{ gap: "0.875rem" }}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: T.tagline / 1000, ease: EASE_OUT_EXPO }}
             >
-              {/* Thin divider rule — anchors taglines visually */}
+              {/*
+                Ornamented divider — short rule with a small diamond accent
+                centered. Two segments draw outward from the diamond to
+                emphasize the center axis. Replaces the weak hairline.
+              */}
               <motion.div
-                initial={{ scaleX: 0, opacity: 0 }}
-                animate={{ scaleX: 1, opacity: 1 }}
-                transition={{
-                  duration: 0.7,
-                  delay: 0.15,
-                  ease: EASE_OUT_EXPO,
-                }}
-                style={{
-                  width: "48px",
-                  height: "1px",
-                  background:
-                    "linear-gradient(90deg, transparent 0%, #DC2626 50%, transparent 100%)",
-                  marginBottom: "0.5rem",
-                  transformOrigin: "center",
-                }}
-              />
+                className="flex items-center justify-center"
+                style={{ gap: "8px" }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
+                <motion.span
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{
+                    duration: 0.6,
+                    delay: 0.2,
+                    ease: EASE_OUT_EXPO,
+                  }}
+                  style={{
+                    display: "inline-block",
+                    width: "32px",
+                    height: "1px",
+                    background:
+                      "linear-gradient(90deg, transparent 0%, #FF4655 100%)",
+                    transformOrigin: "right",
+                  }}
+                />
+                <motion.span
+                  initial={{ scale: 0, rotate: 0 }}
+                  animate={{ scale: 1, rotate: 45 }}
+                  transition={{
+                    duration: 0.4,
+                    delay: 0.5,
+                    ease: EASE_OUT_EXPO,
+                  }}
+                  style={{
+                    display: "inline-block",
+                    width: "5px",
+                    height: "5px",
+                    background: "#FF4655",
+                    boxShadow: "0 0 8px rgba(255,70,85,0.6)",
+                  }}
+                />
+                <motion.span
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{
+                    duration: 0.6,
+                    delay: 0.2,
+                    ease: EASE_OUT_EXPO,
+                  }}
+                  style={{
+                    display: "inline-block",
+                    width: "32px",
+                    height: "1px",
+                    background:
+                      "linear-gradient(90deg, #FF4655 0%, transparent 100%)",
+                    transformOrigin: "left",
+                  }}
+                />
+              </motion.div>
+
+              {/*
+                Primary tagline — palette unified with the helmet's bright
+                crimson (#FB6470 reads as the same hue family as #FF4655).
+                Tracking and weight calibrated for mobile legibility.
+              */}
               <p
                 style={{
                   fontFamily: "'Cabinet Grotesk', sans-serif",
-                  color: "#F87171",
+                  color: "#FB6470",
                   fontSize: "clamp(0.72rem, 2.6vw, 0.88rem)",
                   fontWeight: 500,
-                  letterSpacing: "0.1em",
+                  letterSpacing: "0.14em",
                   textAlign: "center",
                   margin: 0,
                   textTransform: "uppercase",
                 }}
               >
-                {/* Periods in pure red for micro-typography accent */}
-                Real Tournaments<span style={{ color: "#DC2626" }}>.</span> Real Money<span style={{ color: "#DC2626" }}>.</span>
+                Real Tournaments. Real Money.
               </p>
+
+              {/*
+                Credits row — flag glyph at the start, properly readable
+                tracking. Custom SVG flag (no emoji dependency, renders the
+                same on every OS).
+              */}
               <p
                 style={{
                   fontFamily: "'Cabinet Grotesk', sans-serif",
-                  color: "#475569",
+                  color: "#94a3b8",
                   fontSize: "clamp(0.65rem, 2.1vw, 0.78rem)",
                   fontWeight: 400,
-                  letterSpacing: "0.08em",
+                  letterSpacing: "0.06em",
                   textAlign: "center",
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
-                  gap: "6px",
+                  gap: "8px",
                   margin: 0,
                   textTransform: "uppercase",
                 }}
               >
-                Made by Gamers, for Gamers
-                {/* Flag replaced with tracked-out country text — no emoji dependency */}
-                <span
-                  style={{
-                    fontSize: "0.85em",
-                    letterSpacing: "0.12em",
-                    color: "#334155",
-                  }}
-                >
-                  &middot; INDIA
-                </span>
+                <IndiaFlag />
+                <span>Made for India, by Indians</span>
               </p>
             </motion.div>
           )}
@@ -669,5 +717,37 @@ export default function SplashScreen() {
         style={{ height: "20dvh", zIndex: 10 }}
       />
     </div>
+  );
+}
+
+/* ============================================================================
+ * IndiaFlag — minimal 14×10 SVG. Three horizontal stripes (saffron / white /
+ * green) with a small navy disc representing the Ashoka Chakra. The chakra's
+ * 24 spokes are intentionally omitted at this size — they would render as
+ * noise. Renders identically across all operating systems (no emoji
+ * font fallback). Vertically aligned to the cap-height of the credits text.
+ * ========================================================================= */
+function IndiaFlag() {
+  return (
+    <svg
+      width="14"
+      height="10"
+      viewBox="0 0 14 10"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{
+        display: "inline-block",
+        verticalAlign: "middle",
+        flexShrink: 0,
+        borderRadius: "1px",
+        boxShadow: "0 0 0 0.5px rgba(148,163,184,0.3)",
+      }}
+      aria-label="Made in India"
+      role="img"
+    >
+      <rect x="0" y="0" width="14" height="3.33" fill="#FF9933" />
+      <rect x="0" y="3.33" width="14" height="3.34" fill="#FFFFFF" />
+      <rect x="0" y="6.67" width="14" height="3.33" fill="#138808" />
+      <circle cx="7" cy="5" r="1.1" fill="none" stroke="#000080" strokeWidth="0.4" />
+    </svg>
   );
 }
