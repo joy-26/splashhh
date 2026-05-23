@@ -13,9 +13,11 @@ const GAP = 16;
 const ROW_WIDTH = LOGO_SIZE + GAP + TEXT_BLOCK_WIDTH;
 
 export default function SplashScreen() {
-  const [phase, setPhase] = useState<"zoom" | "slide" | "done">("zoom");
+  const [phase, setPhase] = useState<"zoom" | "slash" | "slide" | "done">("zoom");
   const [glowVisible, setGlowVisible] = useState(false);
   const [taglineVisible, setTaglineVisible] = useState(false);
+  const [slashVisible, setSlashVisible] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // The logo is always absolutely positioned on the full screen.
   // Zoom phase:  centered  → top: 50%, left: 50%, translate(-50%, -50%)
@@ -28,6 +30,29 @@ export default function SplashScreen() {
 
   const LOGO_FINAL_X = -((TEXT_BLOCK_WIDTH + GAP) / 2); // negative = left
 
+  // Preload audio
+  useEffect(() => {
+    try {
+      audioRef.current = new Audio("/sounds/slash.mp3");
+      audioRef.current.volume = 0.5;
+    } catch {
+      // Silent fail - browser may not support audio
+    }
+  }, []);
+
+  const playSlashSound = () => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {
+          // Silent fail - respects browser autoplay policy
+        });
+      }
+    } catch {
+      // Silent fail
+    }
+  };
+
   useEffect(() => {
     const run = async () => {
       // 1 — Logo zooms in
@@ -37,11 +62,17 @@ export default function SplashScreen() {
       setGlowVisible(true);
       await new Promise((r) => setTimeout(r, 600));
 
-      // 3 — Slide: logo moves left, text mask expands
+      // 3 — Slash animation (after zoom, before slide)
+      setPhase("slash");
+      setSlashVisible(true);
+      playSlashSound();
+      await new Promise((r) => setTimeout(r, 300)); // slash duration + small pause
+
+      // 4 — Slide: logo moves left, text mask expands
       setPhase("slide");
       await new Promise((r) => setTimeout(r, 900));
 
-      // 4 — Taglines
+      // 5 — Taglines
       setPhase("done");
       setTaglineVisible(true);
     };
@@ -52,7 +83,7 @@ export default function SplashScreen() {
   return (
     <div
       className="relative min-h-[100dvh] w-full overflow-hidden select-none"
-      style={{ background: "#000" }}
+      style={{ background: "#0F172A" }}
     >
       {/* ── Layered Bloom ── */}
       <AnimatePresence>
@@ -107,15 +138,18 @@ export default function SplashScreen() {
         )}
       </AnimatePresence>
 
-      {/* ── Branding area — occupies top 70% of screen ── */}
+      {/* ── Branding area — occupies top 80% of screen (bottom 20% for button) ── */}
       <div
         style={{
           position: "absolute",
           top: 0,
           left: 0,
           right: 0,
-          height: "70dvh",
+          height: "80dvh",
           zIndex: 10,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         {/*
@@ -135,7 +169,7 @@ export default function SplashScreen() {
           }}
           initial={{ scale: 0, opacity: 0, x: -(LOGO_SIZE / 2), y: -(LOGO_SIZE / 2) }}
           animate={
-            phase === "zoom"
+            phase === "zoom" || phase === "slash"
               ? {
                   scale: 1,
                   opacity: 1,
@@ -150,7 +184,7 @@ export default function SplashScreen() {
                 }
           }
           transition={
-            phase === "zoom"
+            phase === "zoom" || phase === "slash"
               ? {
                   scale: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
                   opacity: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
@@ -174,6 +208,57 @@ export default function SplashScreen() {
           />
         </motion.div>
 
+        {/* ── Diagonal Slash Effect (behind helmet) ── */}
+        <AnimatePresence>
+          {slashVisible && (
+            <motion.div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                width: LOGO_SIZE * 1.5,
+                height: LOGO_SIZE * 1.5,
+                transform: "translate(-50%, -50%)",
+                zIndex: 4, // Behind the helmet (zIndex 5)
+                pointerEvents: "none",
+              }}
+            >
+              <svg
+                width="100%"
+                height="100%"
+                viewBox="0 0 100 100"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  transform: "rotate(-18deg)",
+                  overflow: "visible",
+                }}
+              >
+                <motion.line
+                  x1="10"
+                  y1="90"
+                  x2="90"
+                  y2="10"
+                  stroke="#DC2626"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 0.4 }}
+                  exit={{ opacity: 0 }}
+                  transition={{
+                    pathLength: { duration: 0.15, ease: "easeOut" },
+                    opacity: { duration: 0.15 },
+                  }}
+                  style={{
+                    filter: "drop-shadow(0 0 6px rgba(220, 38, 38, 0.6))",
+                  }}
+                />
+              </svg>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/*
           Text mask: centered in the branding area, left-offset to sit
           next to where the logo lands. overflow:hidden + width 0→full.
@@ -189,9 +274,9 @@ export default function SplashScreen() {
             transform: "translateY(-50%)",
           }}
           initial={{ width: 0 }}
-          animate={{ width: phase === "zoom" ? 0 : TEXT_BLOCK_WIDTH }}
+          animate={{ width: phase === "zoom" || phase === "slash" ? 0 : TEXT_BLOCK_WIDTH }}
           transition={
-            phase === "zoom"
+            phase === "zoom" || phase === "slash"
               ? { duration: 0 }
               : { duration: 0.75, ease: EASE_OUT_EXPO }
           }
@@ -202,10 +287,10 @@ export default function SplashScreen() {
           >
             <span
               style={{
-                fontFamily: "'Cabinet Grotesk', sans-serif",
+                fontFamily: "'Josefin Sans', sans-serif",
                 fontSize: "clamp(2rem, 9vw, 3rem)",
-                fontWeight: 800,
-                background: "linear-gradient(180deg, #DC2626 0%, #7F1D1D 100%)",
+                fontWeight: 600,
+                background: "linear-gradient(180deg, #FF4655 0%, #991B1B 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -217,24 +302,49 @@ export default function SplashScreen() {
             >
               ARYZEN
             </span>
-            <span
+            {/* ARENA with flanking silver lines */}
+            <div
               style={{
-                fontFamily: "'Cabinet Grotesk', sans-serif",
-                fontSize: "clamp(0.6rem, 2.5vw, 0.85rem)",
-                fontWeight: 500,
-                background: "linear-gradient(180deg, #991B1B 0%, #DC2626 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                letterSpacing: "0.62em",
-                lineHeight: 1.3,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
                 whiteSpace: "nowrap",
-                paddingRight: "0.62em",
-                filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))",
               }}
             >
-              ARENA
-            </span>
+              {/* Left fading line */}
+              <span
+                style={{
+                  display: "inline-block",
+                  width: "16px",
+                  height: "1px",
+                  background: "linear-gradient(90deg, transparent 0%, #CBD5E1 100%)",
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "'Rajdhani', sans-serif",
+                  fontSize: "clamp(0.6rem, 2.5vw, 0.85rem)",
+                  fontWeight: 600,
+                  color: "#FFFFFF",
+                  letterSpacing: "0.62em",
+                  lineHeight: 1.3,
+                  whiteSpace: "nowrap",
+                  paddingRight: "0.62em",
+                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))",
+                }}
+              >
+                ARENA
+              </span>
+              {/* Right fading line */}
+              <span
+                style={{
+                  display: "inline-block",
+                  width: "16px",
+                  height: "1px",
+                  background: "linear-gradient(90deg, #CBD5E1 0%, transparent 100%)",
+                }}
+              />
+            </div>
           </div>
         </motion.div>
       </div>
@@ -243,7 +353,7 @@ export default function SplashScreen() {
       <div
         className="absolute left-0 right-0 flex flex-col items-center justify-end"
         style={{
-          bottom: "10dvh",
+          bottom: "22dvh",
           paddingBottom: "1rem",
           zIndex: 10,
         }}
