@@ -17,6 +17,7 @@ export default function SplashScreen() {
   const [glowVisible, setGlowVisible] = useState(false);
   const [taglineVisible, setTaglineVisible] = useState(false);
   const [slashVisible, setSlashVisible] = useState(false);
+  const [helmetRecoil, setHelmetRecoil] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // The logo is always absolutely positioned on the full screen.
@@ -66,7 +67,13 @@ export default function SplashScreen() {
       setPhase("slash");
       setSlashVisible(true);
       playSlashSound();
-      await new Promise((r) => setTimeout(r, 350)); // 200ms draw + 150ms pause
+      await new Promise((r) => setTimeout(r, 200)); // slash draw duration
+
+      // 3b — Helmet micro-recoil (120ms after slash completes)
+      setHelmetRecoil(true);
+      await new Promise((r) => setTimeout(r, 120));
+      setHelmetRecoil(false);
+      await new Promise((r) => setTimeout(r, 30)); // small pause after recoil
 
       // 4 — Slide: logo moves left, text mask expands (1050ms)
       setPhase("slide");
@@ -173,7 +180,7 @@ export default function SplashScreen() {
           animate={
             phase === "zoom" || phase === "slash"
               ? {
-                  scale: 1,
+                  scale: helmetRecoil ? 1.04 : 1,
                   opacity: 1,
                   x: 0,
                   y: 0,
@@ -187,12 +194,19 @@ export default function SplashScreen() {
           }
           transition={
             phase === "zoom" || phase === "slash"
-              ? {
-                  scale: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
-                  opacity: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
-                  x: { duration: 0 },
-                  y: { duration: 0 },
-                }
+              ? helmetRecoil
+                ? {
+                    scale: { type: "spring", stiffness: 280, damping: 18, duration: 0.12 },
+                    opacity: { duration: 0 },
+                    x: { duration: 0 },
+                    y: { duration: 0 },
+                  }
+                : {
+                    scale: { type: "spring", stiffness: 180, damping: 14 },
+                    opacity: { duration: 0.7 },
+                    x: { duration: 0 },
+                    y: { duration: 0 },
+                  }
               : {
                   x: { duration: 1.05, ease: EASE_OUT_EXPO },
                   y: { duration: 0 },
@@ -246,11 +260,11 @@ export default function SplashScreen() {
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   initial={{ pathLength: 0, opacity: 0 }}
-                  animate={{ pathLength: 1, opacity: 0.4 }}
+                  animate={{ pathLength: 1, opacity: [0, 0.55, 0] }}
                   exit={{ opacity: 0 }}
                   transition={{
                     pathLength: { duration: 0.2, ease: "easeOut" },
-                    opacity: { duration: 0.2 },
+                    opacity: { times: [0, 0.2, 1], duration: 0.35 },
                   }}
                   style={{
                     filter: "drop-shadow(0 0 6px rgba(220, 38, 38, 0.6))",
