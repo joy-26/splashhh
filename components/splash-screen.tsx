@@ -1,35 +1,71 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState, useRef, useMemo } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
+
+/* ============================================================================
+ * SPLASH SCREEN — Cinematic intro
+ * ----------------------------------------------------------------------------
+ * Sequence (HIGH performance tier):
+ *   1. Anticipation (350ms) — dark scene, vignette + faint vertical beam build
+ *   2. Slash         (250ms) — diagonal blade strike, audio whoosh
+ *   3. Reveal        (550ms) — helmet scales in (spring) + bloom blooms outward
+ *   4. Recoil        (140ms) — helmet micro-pulse to sell the impact
+ *   5. Slide         (1050ms) — logo moves left, ARYZEN/ARENA text mask expands
+ *   6. Taglines      (600ms) — fade up beneath logo
+ *   7. Idle (∞)              — breathing helmet + slow bloom pulse + drifting dust
+ *
+ * PERFORMANCE TIERS (PERF_TIER):
+ *   "high"   — all effects: bloom layers, grain, dust, vignette, breathing loop
+ *   "medium" — bloom + vignette only (no grain, no dust, no breathing loop)
+ *   "low"    — single bloom layer, no decoration, no idle loops, no recoil
+ *
+ * To later optimize for low-end devices, override PERF_TIER below or wire it
+ * to a device-detection hook. Every effect respecting the tier is marked with
+ * `// PERF:` so it can be tree-shaken or gated by Lovable/automated tools.
+ * useReducedMotion() also automatically forces "low" tier for a11y.
+ * ========================================================================= */
+
+type PerfTier = "high" | "medium" | "low";
+
+// PERF: Change this default, or replace with a runtime detector
+// (e.g. navigator.hardwareConcurrency < 4 → "low") to optimize for low-end.
+const PERF_TIER_DEFAULT: PerfTier = "high";
 
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 const LOGO_SIZE = 90;
 const TEXT_BLOCK_WIDTH = 180;
 const GAP = 16;
-// Total row width so we can compute the logo's final screen-center-relative position
 const ROW_WIDTH = LOGO_SIZE + GAP + TEXT_BLOCK_WIDTH;
 
+// Phase timings (ms) — single source of truth. PERF: scale these for "low" tier.
+const T = {
+  anticipation: 350,
+  slash: 250,
+  reveal: 550,
+  recoil: 140,
+  slide: 1050,
+  tagline: 600,
+} as const;
+
 export default function SplashScreen() {
-  const [phase, setPhase] = useState<"zoom" | "slash" | "slide" | "done">("zoom");
+  const prefersReducedMotion = useReducedMotion();
+
+  // PERF: reduced-motion users get the lowest tier automatically.
+  const perfTier: PerfTier = prefersReducedMotion ? "low" : PERF_TIER_DEFAULT;
+
+  type Phase = "anticipation" | "slash" | "reveal" | "slide" | "done";
+  const [phase, setPhase] = useState<Phase>("anticipation");
   const [glowVisible, setGlowVisible] = useState(false);
   const [taglineVisible, setTaglineVisible] = useState(false);
   const [slashVisible, setSlashVisible] = useState(false);
   const [helmetRecoil, setHelmetRecoil] = useState(false);
+  const [helmetRevealed, setHelmetRevealed] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // The logo is always absolutely positioned on the full screen.
-  // Zoom phase:  centered  → top: 50%, left: 50%, translate(-50%, -50%)
-  // Slide phase: moves to the left slot of the centered row.
-  // The row is centered, so its left edge is at:  50vw - ROW_WIDTH/2
-  // The logo occupies the first LOGO_SIZE px of that row.
-  // Therefore the logo's final center is at:  50vw - ROW_WIDTH/2 + LOGO_SIZE/2
-  // Expressed as a translate from screen center (50vw, 50vh):
-  //   x offset = -(ROW_WIDTH/2 - LOGO_SIZE/2)  =  -(TEXT_BLOCK_WIDTH + GAP) / 2
-
-  const LOGO_FINAL_X = -((TEXT_BLOCK_WIDTH + GAP) / 2); // negative = left
+  const LOGO_FINAL_X = -((TEXT_BLOCK_WIDTH + GAP) / 2);
 
   // Preload audio
   useEffect(() => {
@@ -37,7 +73,7 @@ export default function SplashScreen() {
       audioRef.current = new Audio("/sounds/slash.mp3");
       audioRef.current.volume = 0.5;
     } catch {
-      // Silent fail - browser may not support audio
+      /* silent */
     }
   }, []);
 
@@ -45,90 +81,194 @@ export default function SplashScreen() {
     try {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {
-          // Silent fail - respects browser autoplay policy
-        });
+        audioRef.current.play().catch(() => {});
       }
     } catch {
-      // Silent fail
+      /* silent */
     }
   };
 
   useEffect(() => {
     const run = async () => {
-      // 1 — Logo zooms in (700ms)
-      await new Promise((r) => setTimeout(r, 700));
+      // 1 — ANTICIPATION: scene breathes in, vignette settles, beam glints
+      await new Promise((r) => setTimeout(r, T.anticipation));
 
-      // 2 — Bloom fires
-      setGlowVisible(true);
-      await new Promise((r) => setTimeout(r, 700));
-
-      // 3 — Slash animation (200ms + small pause)
+      // 2 — SLASH: blade strike causes the reveal
       setPhase("slash");
       setSlashVisible(true);
       playSlashSound();
-      await new Promise((r) => setTimeout(r, 200)); // slash draw duration
+      await new Promise((r) => setTimeout(r, T.slash));
 
-      // 3b — Helmet micro-recoil (120ms after slash completes)
-      setHelmetRecoil(true);
-      await new Promise((r) => setTimeout(r, 120));
-      setHelmetRecoil(false);
-      await new Promise((r) => setTimeout(r, 30)); // small pause after recoil
+      // 3 — REVEAL: helmet emerges from the slash, bloom blooms outward
+      setPhase("reveal");
+      setHelmetRevealed(true);
+      setGlowVisible(true);
+      await new Promise((r) => setTimeout(r, T.reveal));
 
-      // 4 — Slide: logo moves left, text mask expands (1050ms)
+      // 4 — RECOIL: helmet absorbs the impact
+      // PERF: skip recoil on "low" tier
+      if (perfTier !== "low") {
+        setHelmetRecoil(true);
+        await new Promise((r) => setTimeout(r, T.recoil));
+        setHelmetRecoil(false);
+      }
+
+      // 5 — SLIDE: logo slides left, text mask expands
       setPhase("slide");
-      await new Promise((r) => setTimeout(r, 1050));
+      await new Promise((r) => setTimeout(r, T.slide));
 
-      // 5 — Taglines (600ms fade)
+      // 6 — Taglines
       setPhase("done");
       setTaglineVisible(true);
     };
 
     run();
-  }, []);
+  }, [perfTier]);
+
+  // PERF: dust particles only rendered on "high" tier
+  const dustParticles = useMemo(() => {
+    if (perfTier !== "high") return [];
+    return Array.from({ length: 8 }, (_, i) => ({
+      id: i,
+      left: `${(i * 13 + 7) % 100}%`,
+      delay: (i * 0.7) % 4,
+      duration: 8 + (i % 3) * 2,
+      size: 1 + (i % 2),
+    }));
+  }, [perfTier]);
 
   return (
     <div
       className="relative min-h-[100dvh] w-full overflow-hidden select-none"
       style={{ background: "#0F172A" }}
     >
-      {/* ── Layered Bloom ── */}
+      {/* ── Atmospheric Vignette (high + medium tier) ── */}
+      {/* PERF: removed entirely on "low" tier */}
+      {perfTier !== "low" && (
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            zIndex: 1,
+            background:
+              "radial-gradient(ellipse 80% 60% at center, transparent 40%, rgba(0,0,0,0.55) 100%)",
+          }}
+        />
+      )}
+
+      {/* ── Film Grain (high tier only) ── */}
+      {/* PERF: SVG noise overlay — remove for "medium" and "low" */}
+      {perfTier === "high" && (
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            zIndex: 2,
+            opacity: 0.06,
+            mixBlendMode: "overlay",
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1, 0 0 0 0 1, 0 0 0 0 1, 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+          }}
+        />
+      )}
+
+      {/* ── Drifting Dust Particles (high tier only) ── */}
+      {/* PERF: 8 motion divs — disable entirely for low-end */}
+      {dustParticles.length > 0 && (
+        <div className="pointer-events-none absolute inset-0" style={{ zIndex: 3 }}>
+          {dustParticles.map((p) => (
+            <motion.div
+              key={p.id}
+              style={{
+                position: "absolute",
+                left: p.left,
+                bottom: "-10px",
+                width: p.size,
+                height: p.size,
+                borderRadius: "50%",
+                background: "rgba(203, 213, 225, 0.4)",
+                boxShadow: "0 0 4px rgba(203, 213, 225, 0.3)",
+              }}
+              animate={{
+                y: [0, -window.innerHeight - 20],
+                opacity: [0, 0.6, 0.6, 0],
+              }}
+              transition={{
+                duration: p.duration,
+                delay: p.delay,
+                repeat: Infinity,
+                ease: "linear",
+                times: [0, 0.1, 0.85, 1],
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── Anticipation Beam — faint vertical light glint before slash ── */}
+      <AnimatePresence>
+        {phase === "anticipation" && (
+          <motion.div
+            className="pointer-events-none absolute"
+            style={{
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "2px",
+              height: "70vh",
+              background:
+                "linear-gradient(180deg, transparent 0%, rgba(220,38,38,0.25) 50%, transparent 100%)",
+              filter: "blur(2px)",
+              zIndex: 3,
+            }}
+            initial={{ opacity: 0, scaleY: 0.4 }}
+            animate={{ opacity: 1, scaleY: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35, ease: EASE_OUT_EXPO }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Layered Bloom (gated by tier) ── */}
       <AnimatePresence>
         {glowVisible && (
           <motion.div
             className="absolute inset-0 pointer-events-none"
-            style={{ zIndex: 0 }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1.2, ease: EASE_OUT_EXPO }}
+            style={{ zIndex: 4 }}
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.9, ease: EASE_OUT_EXPO }}
           >
-            <div
-              style={{
-                position: "absolute",
-                top: "40%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "160vw",
-                height: "100vh",
-                background:
-                  "radial-gradient(ellipse 50% 35% at center, rgba(127,29,29,0.25) 0%, transparent 70%)",
-                filter: "blur(80px)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: "40%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "100vw",
-                height: "70vh",
-                background:
-                  "radial-gradient(ellipse 45% 40% at center, rgba(185,28,28,0.2) 0%, transparent 60%)",
-                filter: "blur(50px)",
-              }}
-            />
-            <div
+            {/* PERF: outer halos only on high/medium */}
+            {perfTier !== "low" && (
+              <>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "40%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: "160vw",
+                    height: "100vh",
+                    background:
+                      "radial-gradient(ellipse 50% 35% at center, rgba(127,29,29,0.25) 0%, transparent 70%)",
+                    filter: "blur(80px)",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "40%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: "100vw",
+                    height: "70vh",
+                    background:
+                      "radial-gradient(ellipse 45% 40% at center, rgba(185,28,28,0.2) 0%, transparent 60%)",
+                    filter: "blur(50px)",
+                  }}
+                />
+              </>
+            )}
+            {/* Core bloom — present on all tiers */}
+            <motion.div
               style={{
                 position: "absolute",
                 top: "40%",
@@ -139,6 +279,17 @@ export default function SplashScreen() {
                 background:
                   "radial-gradient(ellipse 50% 45% at center, rgba(220,38,38,0.3) 0%, transparent 50%)",
                 filter: "blur(35px)",
+              }}
+              // PERF: idle pulse only on high tier
+              animate={
+                perfTier === "high" && phase === "done"
+                  ? { opacity: [1, 0.82, 1], scale: [1, 1.04, 1] }
+                  : {}
+              }
+              transition={{
+                duration: 3.5,
+                repeat: Infinity,
+                ease: "easeInOut",
               }}
             />
           </motion.div>
@@ -160,10 +311,8 @@ export default function SplashScreen() {
         }}
       >
         {/*
-          Logo: absolutely centered on the FULL screen during zoom.
-          Uses top/left 50% + Framer translate to sit at viewport center.
-          On slide phase, translateX shifts left by LOGO_FINAL_X to land
-          in the left slot of the centered row.
+          Helmet logo. Hidden until the slash draws — the slash CAUSES the reveal.
+          Living end-state: subtle breathing scale loop after phase === "done".
         */}
         <motion.div
           style={{
@@ -172,47 +321,58 @@ export default function SplashScreen() {
             left: "50%",
             width: LOGO_SIZE,
             height: LOGO_SIZE,
-            zIndex: 5,
+            zIndex: 6,
             marginTop: -(LOGO_SIZE / 2),
             marginLeft: -(LOGO_SIZE / 2),
+            // PERF: filter is GPU-cheap on modern devices but skip on "low"
+            filter:
+              perfTier !== "low"
+                ? "drop-shadow(0 8px 24px rgba(220,38,38,0.25))"
+                : undefined,
           }}
-          initial={{ scale: 0, opacity: 0, x: 0, y: 0 }}
+          initial={{ scale: 0.6, opacity: 0, x: 0, y: 0 }}
           animate={
-            phase === "zoom" || phase === "slash"
+            phase === "anticipation" || phase === "slash"
+              ? { scale: 0.6, opacity: 0, x: 0, y: 0 }
+              : phase === "reveal"
               ? {
-                  scale: helmetRecoil ? 1.04 : 1,
+                  scale: helmetRecoil ? 1.06 : 1,
                   opacity: 1,
                   x: 0,
                   y: 0,
                 }
-              : {
-                  scale: 1,
+              : phase === "slide"
+              ? { scale: 1, opacity: 1, x: LOGO_FINAL_X, y: 0 }
+              : // phase === "done" — living idle
+                {
+                  scale: perfTier === "high" ? [1, 1.012, 1] : 1,
                   opacity: 1,
                   x: LOGO_FINAL_X,
                   y: 0,
                 }
           }
           transition={
-            phase === "zoom" || phase === "slash"
+            phase === "reveal"
               ? helmetRecoil
                 ? {
-                    scale: { type: "spring", stiffness: 280, damping: 18, duration: 0.12 },
-                    opacity: { duration: 0 },
-                    x: { duration: 0 },
-                    y: { duration: 0 },
+                    scale: { type: "spring", stiffness: 320, damping: 16, duration: 0.14 },
                   }
                 : {
-                    scale: { type: "spring", stiffness: 180, damping: 14 },
-                    opacity: { duration: 0.7 },
-                    x: { duration: 0 },
-                    y: { duration: 0 },
+                    scale: { type: "spring", stiffness: 160, damping: 13 },
+                    opacity: { duration: 0.5, ease: EASE_OUT_EXPO },
                   }
-              : {
-                  x: { duration: 1.05, ease: EASE_OUT_EXPO },
-                  y: { duration: 0 },
-                  scale: { duration: 0 },
-                  opacity: { duration: 0 },
+              : phase === "slide"
+              ? { x: { duration: T.slide / 1000, ease: EASE_OUT_EXPO } }
+              : phase === "done"
+              ? {
+                  // PERF: breathing loop — disable on medium/low
+                  scale: {
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  },
                 }
+              : { duration: 0 }
           }
         >
           <Image
@@ -224,20 +384,22 @@ export default function SplashScreen() {
           />
         </motion.div>
 
-        {/* ── Diagonal Slash Effect (behind helmet) ── */}
+        {/* ── Diagonal Slash — the causal reveal stroke ── */}
         <AnimatePresence>
-          {slashVisible && (
+          {slashVisible && !helmetRevealed && (
             <motion.div
               style={{
                 position: "absolute",
                 top: "50%",
                 left: "50%",
-      width: LOGO_SIZE,
-              height: LOGO_SIZE,
+                width: LOGO_SIZE * 1.4,
+                height: LOGO_SIZE * 1.4,
                 transform: "translate(-50%, -50%)",
-                zIndex: 4, // Behind the helmet (zIndex 5)
+                zIndex: 7, // Above helmet during reveal moment
                 pointerEvents: "none",
               }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
             >
               <svg
                 width="100%"
@@ -245,29 +407,27 @@ export default function SplashScreen() {
                 viewBox="0 0 100 100"
                 style={{
                   position: "absolute",
-                  top: 0,
-                  left: 0,
+                  inset: 0,
                   transform: "rotate(-18deg)",
                   overflow: "visible",
                 }}
               >
                 <motion.line
-                  x1="10"
-                  y1="90"
-                  x2="90"
-                  y2="10"
+                  x1="5"
+                  y1="95"
+                  x2="95"
+                  y2="5"
                   stroke="#DC2626"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   initial={{ pathLength: 0, opacity: 0 }}
-                  animate={{ pathLength: 1, opacity: [0, 0.55, 0] }}
-                  exit={{ opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: [0, 0.7, 0] }}
                   transition={{
-                    pathLength: { duration: 0.2, ease: "easeOut" },
-                    opacity: { times: [0, 0.2, 1], duration: 0.35 },
+                    pathLength: { duration: T.slash / 1000, ease: "easeOut" },
+                    opacity: { times: [0, 0.25, 1], duration: 0.5 },
                   }}
                   style={{
-                    filter: "drop-shadow(0 0 6px rgba(220, 38, 38, 0.6))",
+                    filter: "drop-shadow(0 0 8px rgba(220, 38, 38, 0.7))",
                   }}
                 />
               </svg>
@@ -275,26 +435,25 @@ export default function SplashScreen() {
           )}
         </AnimatePresence>
 
-        {/*
-          Text mask: centered in the branding area, left-offset to sit
-          next to where the logo lands. overflow:hidden + width 0→full.
-        */}
+        {/* Text mask: width 0 → TEXT_BLOCK_WIDTH on slide phase */}
         <motion.div
           style={{
             position: "absolute",
             top: "50%",
-            // Row is centered: left edge = 50% - ROW_WIDTH/2
-            // Text starts at: left edge + LOGO_SIZE + GAP
             left: `calc(50% - ${ROW_WIDTH / 2}px + ${LOGO_SIZE + GAP}px)`,
             overflow: "hidden",
             transform: "translateY(-50%)",
+            zIndex: 6,
           }}
           initial={{ width: 0 }}
-          animate={{ width: phase === "zoom" || phase === "slash" ? 0 : TEXT_BLOCK_WIDTH }}
+          animate={{
+            width:
+              phase === "slide" || phase === "done" ? TEXT_BLOCK_WIDTH : 0,
+          }}
           transition={
-            phase === "zoom" || phase === "slash"
-              ? { duration: 0 }
-              : { duration: 1.05, ease: EASE_OUT_EXPO }
+            phase === "slide" || phase === "done"
+              ? { duration: T.slide / 1000, ease: EASE_OUT_EXPO }
+              : { duration: 0 }
           }
         >
           <div
@@ -318,7 +477,6 @@ export default function SplashScreen() {
             >
               ARYZEN
             </span>
-            {/* ARENA with flanking silver lines */}
             <div
               style={{
                 display: "flex",
@@ -327,13 +485,13 @@ export default function SplashScreen() {
                 whiteSpace: "nowrap",
               }}
             >
-              {/* Left fading line */}
               <span
                 style={{
                   display: "inline-block",
                   width: "16px",
                   height: "1px",
-                  background: "linear-gradient(90deg, transparent 0%, #CBD5E1 100%)",
+                  background:
+                    "linear-gradient(90deg, transparent 0%, #CBD5E1 100%)",
                 }}
               />
               <span
@@ -351,13 +509,13 @@ export default function SplashScreen() {
               >
                 ARENA
               </span>
-              {/* Right fading line */}
               <span
                 style={{
                   display: "inline-block",
                   width: "16px",
                   height: "1px",
-                  background: "linear-gradient(90deg, #CBD5E1 0%, transparent 100%)",
+                  background:
+                    "linear-gradient(90deg, #CBD5E1 0%, transparent 100%)",
                 }}
               />
             </div>
@@ -365,31 +523,58 @@ export default function SplashScreen() {
         </motion.div>
       </div>
 
-      {/* ── Taglines ── */}
+      {/*
+        Taglines — refined positioning above the reserved button zone.
+        Bottom 20dvh is reserved for the Get Started button.
+        Taglines sit in a compact stack just above, with a thin divider
+        rule to add visual hierarchy and breathing room.
+      */}
       <div
-        className="absolute left-0 right-0 flex flex-col items-center justify-end"
+        className="absolute left-0 right-0 flex flex-col items-center"
         style={{
-          bottom: "22dvh",
-          paddingBottom: "1rem",
+          bottom: "20dvh",
+          paddingBottom: "1.25rem",
           zIndex: 10,
+          pointerEvents: "none",
         }}
       >
         <AnimatePresence>
           {taglineVisible && (
             <motion.div
-              className="flex flex-col items-center gap-3"
-              initial={{ opacity: 0, y: 16 }}
+              className="flex flex-col items-center"
+              style={{ gap: "0.5rem" }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: EASE_OUT_EXPO }}
+              transition={{ duration: T.tagline / 1000, ease: EASE_OUT_EXPO }}
             >
+              {/* Thin divider rule — anchors taglines visually */}
+              <motion.div
+                initial={{ scaleX: 0, opacity: 0 }}
+                animate={{ scaleX: 1, opacity: 1 }}
+                transition={{
+                  duration: 0.7,
+                  delay: 0.15,
+                  ease: EASE_OUT_EXPO,
+                }}
+                style={{
+                  width: "48px",
+                  height: "1px",
+                  background:
+                    "linear-gradient(90deg, transparent 0%, #DC2626 50%, transparent 100%)",
+                  marginBottom: "0.5rem",
+                  transformOrigin: "center",
+                }}
+              />
               <p
                 style={{
                   fontFamily: "'Cabinet Grotesk', sans-serif",
                   color: "#DC2626",
-                  fontSize: "clamp(0.9rem, 3vw, 1.1rem)",
+                  fontSize: "clamp(0.95rem, 3vw, 1.15rem)",
                   fontWeight: 600,
-                  letterSpacing: "0.04em",
+                  letterSpacing: "0.05em",
                   textAlign: "center",
+                  margin: 0,
+                  textTransform: "uppercase",
                 }}
               >
                 Real Tournaments. Real Money.
@@ -397,21 +582,22 @@ export default function SplashScreen() {
               <p
                 style={{
                   fontFamily: "'Cabinet Grotesk', sans-serif",
-                  color: "#6b7280",
-                  fontSize: "clamp(0.8rem, 2.5vw, 0.95rem)",
+                  color: "#94a3b8",
+                  fontSize: "clamp(0.78rem, 2.4vw, 0.9rem)",
                   fontWeight: 400,
-                  letterSpacing: "0.02em",
+                  letterSpacing: "0.03em",
                   textAlign: "center",
                   display: "flex",
                   alignItems: "center",
-                  gap: "10px",
+                  gap: "8px",
+                  margin: 0,
                 }}
               >
                 Made by Gamers, for Gamers
                 <span
                   role="img"
                   aria-label="India flag"
-                  style={{ fontSize: "1.5em" }}
+                  style={{ fontSize: "1.25em", lineHeight: 1 }}
                 >
                   🇮🇳
                 </span>
@@ -421,7 +607,7 @@ export default function SplashScreen() {
         </AnimatePresence>
       </div>
 
-      {/* ── Bottom reserved zone for Get Started button ── */}
+      {/* Bottom reserved zone — Get Started button slot */}
       <div
         className="absolute bottom-0 left-0 right-0"
         style={{ height: "20dvh", zIndex: 10 }}
