@@ -35,9 +35,10 @@ const PERF_TIER_DEFAULT: PerfTier = "high";
 
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
-const LOGO_SIZE = 120;
+const LOGO_SIZE = 88;
 const TEXT_BLOCK_WIDTH = 220;
-const GAP = 16;
+const GAP = 18;
+const HELMET_OPTICAL_NUDGE = 3; // Spartan helmet's crest faces left — nudge right to optically center
 const ROW_WIDTH = LOGO_SIZE + GAP + TEXT_BLOCK_WIDTH;
 
 // Phase timings (ms) — single source of truth. PERF: scale these for "low" tier.
